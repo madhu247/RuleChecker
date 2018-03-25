@@ -7,7 +7,7 @@ import re
 
 def checkRuleFile(fileName):
     fp = open(fileName, 'r')
-    pattern = re.compile(r"^[0-9]+\s*,\s*[0-9]+\s*,\s*[0-9]+\s* (\( [a-zA-Z\-_\s,]+ ([0-9]+.?[0-9]* | [0-9]+.?[0-9]*..[0-9]+.?[0-9]* | [a-zA-Z\-_]+)\)\s*[\^\&]{0,1}\s*)+\-{1,2}>\s*\( [a-zA-Z\-_\s,]+ ([0-9]+.?[0-9]* | [0-9]+.?[0-9]*..[0-9]+.?[0-9]* | [a-zA-Z\-_]+)\)",re.VERBOSE)
+    pattern = re.compile(r"[0-9]+\s*,\s*[0-9]+\s*,\s*[0-9]+\s* (\( [a-zA-Z0-9\-_\s,]+ ([0-9]+.?[0-9]* | [0-9]+.?[0-9]*..[0-9]+.?[0-9]* | [a-zA-Z0-9\-_]+)\)\s*[\^\&]{0,1}\s*)+\-{1,2}>\s*\( [a-zA-Z0-9\-_\s,]+ ([0-9]+.?[0-9]* | [0-9]+.?[0-9]*..[0-9]+.?[0-9]* | [a-zA-Z0-9\-_]+)\)",re.VERBOSE)
     flag = 0
     tmpLine =''
     arrayOfDicts = []
@@ -34,10 +34,10 @@ def checkRuleFile(fileName):
 def dictFromRules(RuleString):
     d = {}
     start = RuleString.find('(')
-    [d['specificity'], d['strength'], d['numOfTrainCases']] = RuleString[0:start].split(',')
+    [d['specificity'], d['strength'], d['numOfTrainCasesMatched']] = RuleString[0:start].split(',')
     d['specificity'] = int(d['specificity'].strip())
     d['strength'] = int(d['strength'].strip())
-    d['numOfTrainCases'] = int(d['numOfTrainCases'].strip())
+    d['numOfTrainCasesMatched'] = int(d['numOfTrainCasesMatched'].strip())
     desIndex = RuleString.rfind('(')
     d[RuleString[desIndex+1:].split(',')[0].strip()] = RuleString[desIndex:].split(',')[1].strip().replace(')','')
     end = RuleString.find('->')
@@ -52,7 +52,7 @@ def dictFromRules(RuleString):
 
 
 def checkRules(Rules, Cases, DesName):
-    Keys = [ k for k in Rules.keys() if k not in ['specificity', 'strength', 'numOfTrainCases', DesName]]
+    Keys = [ k for k in Rules.keys() if k not in ['specificity', 'strength', 'numOfTrainCasesMatched', DesName]]
     flag = 0
     for k in Keys:
         if Cases[k] == '-' or Cases[k] == '*':
@@ -69,12 +69,13 @@ def checkRules(Rules, Cases, DesName):
                 flag = 1
                 continue
             else:
+                flag = 0
                 break
         else:
+            flag = 0
             break
     if flag:
-        if Rules[DesName] == Cases[DesName]:
-            return True
+        return True
     else:
         return False
 
