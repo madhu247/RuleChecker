@@ -54,6 +54,7 @@ def dictFromRules(RuleString):
 def checkRules(Rules, Cases, DesName):
     Keys = [ k for k in Rules.keys() if k not in ['specificity', 'strength', 'numOfTrainCasesMatched', DesName]]
     flag = 0
+    matchedCases = 0
     for k in Keys:
         if Cases[k] == '-' or Cases[k] == '*':
             Cases[k] = Rules[k]
@@ -61,11 +62,13 @@ def checkRules(Rules, Cases, DesName):
         # elif Cases[k] == '?':
         #     Cases[k] = 'Madhu'
         if Rules[k] == Cases[k]:
+            matchedCases = matchedCases + 1
             flag = 1
             continue
         elif Rules[k].find('..'):
             values = getValues(Rules[k])
             if Cases[k] >= values[0] and Cases[k] <= values[1]:
+                matchedCases = matchedCases + 1
                 flag = 1
                 continue
             else:
@@ -75,9 +78,10 @@ def checkRules(Rules, Cases, DesName):
             flag = 0
             break
     if flag:
-        return True
+        return True, matchedCases
     else:
-        return False
+        return False, matchedCases
+
 
 def getValues(symNumericals):
     if symNumericals.find('..'):
