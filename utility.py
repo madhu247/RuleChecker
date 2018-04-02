@@ -64,13 +64,11 @@ def checkRules(Rules, Cases, DesName):
         if Rules[k] == Cases[k]:
             matchedCases = matchedCases + 1
             flag = 1
-            continue
-        elif Rules[k].find('..'):
+        elif Rules[k].find('..') > 0:
             values = getValues(Rules[k])
             if Cases[k] >= values[0] and Cases[k] <= values[1]:
                 matchedCases = matchedCases + 1
                 flag = 1
-                continue
             else:
                 flag = 0
                 break

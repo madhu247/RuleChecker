@@ -7,6 +7,7 @@ main.py, by Madhu Chegondi, 03-23-2018
 import sys
 import utility
 import re
+import sys
 
 def main():
     print ""
@@ -73,11 +74,12 @@ def main():
     strengthFactor = raw_input("\tDo you want to use Strength or Conditional Probability as Strength Factor ? (s/p) ")
     specificityFactor = raw_input("\tDo you wish to use Specificity ? (y/n) ")
     supportFactor = raw_input("\tDo you wish to use Support of other rules ? (y/n) ")
-    conceptStats = raw_input("\tDo you want Concept Statistics ? (y/n) ")
+    conceptStats = raw_input("\n\tDo you want Concept Statistics ? (y/n) ")
     conceptStatsCases = raw_input("\tDo you wish to know how cases associated with concepts ? (y/n) ")
 
     correctlyClassifiedCases = []
     inCorrectlyClassifiedCases = []
+    notClassifiedCases = []
     for i in range(len(Cases)):
         for j in range(len(Rules)):
             if utility.checkRules(Rules[j], Cases[i], DesName)[0]:
@@ -93,15 +95,23 @@ def main():
                     if i not in inCorrectlyClassifiedCases:
                         inCorrectlyClassifiedCases.append(i)
 
+    # CASES THAT ARE CLASSIFED EITHER CORRECTLY OR INCORRECTLY
     correctSet = set(correctlyClassifiedCases)
     inCorrectSet = set(inCorrectlyClassifiedCases)
 
+    # CASES THAT ARE NOT CLASSIFIED IN AT ALL IN COMPLETE MATCHING
+    for i in range(len(Cases)):
+        if i not in correctlyClassifiedCases and i not in correctlyClassifiedCases:
+            notClassifiedCases.append(i)
+
     corrAndinCorrCases = correctSet.intersection(inCorrectSet)
+    listOfcorrAndinCorrCases = list(corrAndinCorrCases)
+    correctSet = correctSet.difference(inCorrectSet)
 
     RuleStats = []
     matchedRuleStats = {}
     id = 0
-    for caseNum in list(corrAndinCorrCases):
+    for caseNum in listOfcorrAndinCorrCases:
         support1 = 0
         support2 = 0
         for j in range(len(Rules)):
@@ -124,7 +134,62 @@ def main():
                     condProb = round(float(Rules[j]['strength'])/float(Rules[j]['numOfTrainCasesMatched']),2)
                     matchedRuleStats['condProb'] = condProb
                 RuleStats.append(matchedRuleStats)
+                print matchedRuleStats
                 matchedRuleStats = {}
                 id = id + 1
+
+    for caseNum in listOfcorrAndinCorrCases:
+        support = {}
+        id1 = 'sample'
+        id3 = 'sample1'
+        maxSpecificity = 0
+        maxStrength = 0
+        maxSupport = 0
+        maxCondProb = 0
+        correctlyClassifiedFlag = 0
+        inCorrectlyClassifiedFlag = 0
+        listOfDecisions = list(set([item['decision'] for item in RuleStats if item['CaseNumber'] == caseNum]))
+        for i in listOfDecisions:
+            support[i] = sum([item['partialMatchingFactor'] * item['strength'] * item['specificity'] for item in RuleStats if item['CaseNumber'] == caseNum and item['decision'] == i])
+        if supportFactor == 'y':
+            keyValueTup = [(value, key) for key, value in support.items()]
+            desFromSupport = max(keyValueTup)[1]
+            if Cases[caseNum][DesName] == desFromSupport:
+                correctlyClassifiedFlag = 1
+            else:
+                inCorrectlyClassifiedFlag = 1
+        support = {}
+
+        for item in RuleStats:
+            maxPartialMatchingFactor = 0
+            if item['CaseNumber'] == caseNum:
+                if specificityFactor == 'y':
+                    if item['specificity'] >= maxSpecificity:
+                        maxSpecificity = item['specificity']
+                        id1 = item['id']
+                if strengthFactor == 's':
+                    if item['strength'] >= maxStrength:
+                        maxStrength = item['strength']
+                        id2 = item['id']
+                else:
+                    if item['condProb'] >= maxCondProb:
+                        maxCondProb = item['condProb']
+                        id2 = item['id']
+                if matchingFactor == 'y':
+                    if item['partialMatchingFactor'] >= maxPartialMatchingFactor:
+                        maxPartialMatchingFactor = item['partialMatchingFactor']
+                        id3 = item['id']
+        if id2 == id1 or id1 == 'sample' and id2 == id3 or id3 == 'sample1':
+            if [Cases[caseNum][DesName]] == [i['decision'] for i in RuleStats if i['id'] == id2]:
+                inCorrectlyClassifiedFlag = 0
+                correctlyClassifiedFlag = 1
+        else:
+            correctlyClassifiedFlag = 0
+            inCorrectlyClassifiedFlag = 1
+
+        if correctlyClassifiedFlag == 1:
+            inCorrectSet.remove(caseNum)
+            correctSet.add(caseNum)
+
 
 main()
