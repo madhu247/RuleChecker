@@ -115,13 +115,15 @@ def getValues(symNumericals):
     return values
 
 
-def getRuleStats(Rule, caseNum, DesName, j, id, matchedCases, strengthFactor, matchingFactor='n'):
+def getRuleStats(Rule, caseNum, DesName, j, id, matchedCases, strengthFactor, matchingFactor='n', specificityFactor='n'):
     matchedRuleStats = {}
     matchedRuleStats['id'] = id
     matchedRuleStats['decision'] = Rule[DesName]
     matchedRuleStats['CaseNumber'] = caseNum
-    matchedRuleStats['specificity'] = Rule['specificity']
-    matchedRuleStats['strength'] = Rule['strength']
+    if specificityFactor == 'y':
+        matchedRuleStats['specificity'] = Rule['specificity']
+    else:
+        matchedRuleStats['specificity'] = 1
     matchedRuleStats['RuleNum'] = j
     matchedRuleStats['matchedCases'] = matchedCases
     if matchingFactor == 'y':
@@ -131,14 +133,16 @@ def getRuleStats(Rule, caseNum, DesName, j, id, matchedCases, strengthFactor, ma
         matchedRuleStats['partialMatchingFactor'] = 1
     if strengthFactor == 'p':
         condProb = round(float(Rule['strength'])/float(Rule['numOfTrainCasesMatched']),2)
-        matchedRuleStats['condProb'] = condProb
+        matchedRuleStats['sp'] = condProb
+    else:
+        matchedRuleStats['sp'] = Rule['strength']
     return matchedRuleStats
 
 
 def classificationOfCases(caseNum, Cases, RuleStats, DesName, strengthFactor, matchingFactor='n', specificityFactor='n', supportFactor='n'):
     support = {}
-    id1 = 'sample'
-    id3 = 'sample1'
+    id1 = []
+    id3 = []
     maxSpecificity = 0
     maxStrength = 0
     maxSupport = 0
@@ -146,36 +150,115 @@ def classificationOfCases(caseNum, Cases, RuleStats, DesName, strengthFactor, ma
     flag = 0
     listOfDecisions = list(set([item['decision'] for item in RuleStats if item['CaseNumber'] == caseNum]))
     for i in listOfDecisions:
-        support[i] = sum([item['partialMatchingFactor'] * item['strength'] * item['specificity'] for item in RuleStats if item['CaseNumber'] == caseNum and item['decision'] == i])
+        support[i] = sum([item['partialMatchingFactor'] * item['sp'] * item['specificity'] for item in RuleStats if item['CaseNumber'] == caseNum and item['decision'] == i])
     if supportFactor == 'y':
         keyValueTup = [(value, key) for key, value in support.items()]
         # if support of both decisions is same this program picks the desicion Name in Alphabetical order
         desFromSupport = max(keyValueTup)[1]
         if Cases[caseNum][DesName] == desFromSupport:
-            flag = 1
+            return 1 #flag = 1
         else:
-            flag = 0
+            return 0 #flag = 0
     for item in RuleStats:
         maxPartialMatchingFactor = 0
         if item['CaseNumber'] == caseNum:
             if specificityFactor == 'y':
                 if item['specificity'] >= maxSpecificity:
                     maxSpecificity = item['specificity']
-                    id1 = item['id']
+                    id1.append(item['id'])
             if strengthFactor == 's':
-                if item['strength'] >= maxStrength:
-                    maxStrength = item['strength']
+                if item['sp'] >= maxStrength:
+                    maxStrength = item['sp']
                     id2 = item['id']
             else:
-                if item['condProb'] >= maxCondProb:
-                    maxCondProb = item['condProb']
+                if item['sp'] >= maxCondProb:
+                    maxCondProb = item['sp']
                     id2 = item['id']
             if matchingFactor == 'y':
                 if item['partialMatchingFactor'] >= maxPartialMatchingFactor:
                     maxPartialMatchingFactor = item['partialMatchingFactor']
-                    id3 = item['id']
-    if (id2 == id1 or id1 == 'sample') and (id2 == id3 or id3 == 'sample1'):
+                    id3.append(item['id'])
+    if (id2 in id1 or id1 == []) and (id2 in id3 or id3 == []):
         if [Cases[caseNum][DesName]] == [i['decision'] for i in RuleStats if i['id'] == id2] or flag == 1:
             return 1
         else:
             return 0
+
+def RuleChecker(Cases, Rules, DesName, strengthFactor, matchingFactor = None, specificityFactor = None, supportFactor = None):
+    correctlyClassifiedCases = []
+    inCorrectlyClassifiedCases = []
+    notClassifiedCases = []
+    correctAndInCorrectlyClassifiedCases = []
+    partiallyMatchedCases = []
+
+    for i in range(len(Cases)):
+        for j in range(len(Rules)):
+            if checkRules(Rules[j], Cases[i], DesName)[0]:
+                try:
+                    if type(float(Rules[j][DesName])) == float:  #isinstance(value, type)
+                        Rules[j][DesName] = float(Rules[j][DesName])
+                except ValueError:
+                    Rules[j][DesName] = Rules[j][DesName]
+                if Rules[j][DesName] == Cases[i][DesName]:
+                    if i not in correctlyClassifiedCases:
+                        correctlyClassifiedCases.append(i)
+                if Rules[j][DesName] != Cases[i][DesName]:
+                    if i not in inCorrectlyClassifiedCases:
+                        correctAndInCorrectlyClassifiedCases.append(i)
+        for j in range(len(Rules)):
+            if checkRulesForPartialMatching(Rules[j], Cases[i], DesName) > 0 and i not in correctlyClassifiedCases and i not in correctAndInCorrectlyClassifiedCases:
+                if i not in partiallyMatchedCases:
+                    partiallyMatchedCases.append(i)
+        for j in range(len(Rules)):
+            if checkRules(Rules[j], Cases[i], DesName)[1] == 0 and i not in correctlyClassifiedCases and i not in correctAndInCorrectlyClassifiedCases and i not in partiallyMatchedCases:
+                if i not in notClassifiedCases:
+                    notClassifiedCases.append(i)
+
+    # CASES THAT ARE CLASSIFED EITHER CORRECTLY OR INCORRECTLY
+    correctSet = set(correctlyClassifiedCases)
+    correctAndInCorrectSet = set(correctAndInCorrectlyClassifiedCases)
+    inCorrectSet = correctAndInCorrectSet.difference(correctSet)
+
+    corrAndinCorrCases = correctSet.intersection(correctAndInCorrectSet)
+    listOfcorrAndinCorrCases = list(corrAndinCorrCases)
+    correctSet = correctSet.difference(correctAndInCorrectSet)
+    notClassifiedCasesCount = len(notClassifiedCases)
+
+    RuleStats = []
+    id = 0
+    for caseNum in listOfcorrAndinCorrCases:
+        for j in range(len(Rules)):
+            [condition, matchedCases] = checkRules(Rules[j], Cases[caseNum], DesName)
+            if condition:
+                RuleStats.append(getRuleStats(Rules[j], caseNum, DesName, j, id, matchedCases, strengthFactor, matchingFactor))
+                id = id + 1
+
+    for caseNum in listOfcorrAndinCorrCases:
+        if classificationOfCases(caseNum, Cases, RuleStats, DesName, strengthFactor, matchingFactor, specificityFactor, supportFactor):
+            correctSet.add(caseNum)
+        else:
+            inCorrectSet.add(caseNum)
+
+    compInCorClass = len(inCorrectSet)
+    compCorClass = len(correctSet)
+
+    RuleStats = []
+    id = 0
+    parCorrectSet = set()
+    parInCorrectSet = set()
+    for caseNum in partiallyMatchedCases:
+        for j in range(len(Rules)):
+            matchedCases = checkRulesForPartialMatching(Rules[j], Cases[caseNum], DesName)
+            if matchedCases:
+                RuleStats.append(getRuleStats(Rules[j], caseNum, DesName, j, id, matchedCases, strengthFactor, matchingFactor))
+                id = id + 1
+
+    for caseNum in partiallyMatchedCases:
+        if classificationOfCases(caseNum, Cases, RuleStats, DesName, strengthFactor, matchingFactor, specificityFactor, supportFactor):
+            parCorrectSet.add(caseNum)
+        else:
+            parInCorrectSet.add(caseNum)
+
+    notClassifiedPlusInCorrCases = len(parInCorrectSet) + len(notClassifiedCases) + len(inCorrectSet)
+
+    return notClassifiedCases, parInCorrectSet, parCorrectSet, inCorrectSet, correctSet, notClassifiedPlusInCorrCases
